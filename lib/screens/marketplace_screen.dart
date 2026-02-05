@@ -192,8 +192,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _buildProductCard(ColorScheme cs, dynamic item) {
-    final String name = item['DisplayName'] ?? "Unknown Pack";
-    final String uuid = item['ItemId'] ?? ""; 
+    final String name = item['Title']?['en-US'] ?? item['Title']?['NEUTRAL'] ?? item['DisplayName'] ?? "Unknown Pack";
+    final String uuid = item['Id'] ?? item['ItemId'] ?? "";
     final String? imgUrl = _findImageUrl(item);
     final bool isUnlocked = KeyDatabaseService.hasKey(uuid);
 
@@ -262,9 +262,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   void _showDetailsSheet(dynamic item, bool isUnlocked) {
     final cs = Theme.of(context).colorScheme;
-    final String name = item['DisplayName'] ?? "Unknown";
-    final String desc = item['Description'] ?? "No description available.";
-    final String uuid = item['ItemId'] ?? "";
+    final String name = item['Title']?['en-US'] ?? item['Title']?['NEUTRAL'] ?? item['DisplayName'] ?? "Unknown";
+    final String desc = item['Description']?['en-US'] ?? item['Description']?['NEUTRAL'] ?? item['Description'] ?? "No description available.";
+    final String uuid = item['Id'] ?? item['ItemId'] ?? "";
     final String? imgUrl = _findImageUrl(item);
 
     showModalBottomSheet(
@@ -321,7 +321,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               onPressed: (isUnlocked && _targetPath != null) 
                                 ? () {
                                     // Trigger download, and update THIS sheet's state
-                                    _handleDownload(uuid, name, setSheetState);
+                                    _handleDownload(item, uuid, name, setSheetState);
                                   }
                                 : null,
                               style: FilledButton.styleFrom(
@@ -354,7 +354,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   // Updated to accept setSheetState so we can update the BottomSheet UI
-  Future<void> _handleDownload(String uuid, String name, StateSetter setSheetState) async {
+  Future<void> _handleDownload(dynamic item, String uuid, String name, StateSetter setSheetState) async {
     if (_targetPath == null) return;
 
     setSheetState(() {
@@ -362,10 +362,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       _downloadStatus = "Starting...";
     });
 
+    final String? directDownloadUrl = PlayFabService.extractContentUrl(item);
+
     final result = await MarketManager.downloadAndInject(
       uuid, 
       name, 
       _targetPath!,
+      directDownloadUrl: directDownloadUrl,
       onProgress: (p) {
         // Update the BottomSheet UI
         setSheetState(() {
@@ -392,7 +395,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   String? _findImageUrl(dynamic item) {
     if (item['ItemImageUrl'] != null && item['ItemImageUrl'].toString().isNotEmpty) return item['ItemImageUrl'];
-    if (item['Images'] != null && item['Images'] is List && item['Images'].isNotEmpty) return item['Images'][0]['Url'];
+    if (item['Images'] != null && item['Images'] is List && item['Images'].isNotEmpty) {
+      final dynamic thumb = (item['Images'] as List).cast<dynamic>().firstWhere(
+        (img) => (img['Type'] ?? '').toString() == 'Thumbnail',
+        orElse: () => item['Images'][0],
+      );
+      return thumb['Url'];
+    }
     return null;
   }
 }

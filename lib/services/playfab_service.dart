@@ -6,7 +6,7 @@ import 'package:uuid/uuid.dart';
 class PlayFabService {
   // --- CONFIG FROM PYTHON SCRIPT ---
   static const String _titleId = "20CA2"; 
-  static const String _baseUrl = "https://20CA2.playfabapi.com";
+  static const String _baseUrl = "https://20ca2.playfabapi.com";
   static const String _scid = "4fc10100-5f7a-4470-899b-280835760c07"; // Hardcoded in Python script
   
   // Auth Tokens
@@ -130,7 +130,7 @@ class PlayFabService {
       "filter": filterQuery,
       "orderBy": "creationDate DESC",
       "scid": _scid,
-      "select": "contents", // We need contents to get the Key ID
+      "select": "contents,title,description,images,displayProperties,tags",
       "top": 20,
       "skip": 0,
       "search": searchQuery // The actual text search goes here
@@ -164,6 +164,31 @@ class PlayFabService {
       print("❌ $lastError");
       return [];
     }
+  }
+
+  /// Extract a direct content URL from a Catalog item (Python uses item["Contents"][..]["Url"]).
+  static String? extractContentUrl(dynamic item) {
+    if (item is! Map) return null;
+
+    final dynamic contentsRaw = item['Contents'] ?? item['contents'];
+    if (contentsRaw is! List || contentsRaw.isEmpty) return null;
+
+    // Prefer non-skin binaries first; fallback to first URL.
+    for (final entry in contentsRaw) {
+      if (entry is! Map) continue;
+      final String type = (entry['Type'] ?? entry['type'] ?? '').toString().toLowerCase();
+      final String? url = (entry['Url'] ?? entry['url'])?.toString();
+      if (url == null || url.isEmpty) continue;
+      if (type != 'skinbinary' && type != 'personabinary') return url;
+    }
+
+    for (final entry in contentsRaw) {
+      if (entry is! Map) continue;
+      final String? url = (entry['Url'] ?? entry['url'])?.toString();
+      if (url != null && url.isNotEmpty) return url;
+    }
+
+    return null;
   }
 
   // --- 3. GET DOWNLOAD URL ---
