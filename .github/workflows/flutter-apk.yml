@@ -1,7 +1,9 @@
-name: Build Flutter APK (Docker)
+name: Build APK on Release
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 jobs:
   build:
@@ -13,17 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Flutter doctor
-        run: flutter doctor -v
+      - run: flutter pub get
+      - run: flutter build apk --release
 
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build APK
-        run: flutter build apk --release
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - uses: softprops/action-gh-release@v2
         with:
-          name: app-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/app-release.apk
