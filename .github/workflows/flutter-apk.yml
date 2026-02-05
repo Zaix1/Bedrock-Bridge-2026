@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,9 +18,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: flutter pub get
-      - run: flutter build apk --release
+      - name: Flutter doctor
+        run: flutter doctor -v
 
-      - uses: softprops/action-gh-release@v2
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           files: build/app/outputs/flutter-apk/app-release.apk
