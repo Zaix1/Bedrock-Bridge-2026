@@ -1,0 +1,53 @@
+name: minecraft_save_creator
+description: A new Flutter project.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- ALIGNMENT FIX: These must be level with 'flutter', not inside it ---
+  http: ^1.2.0
+  uuid: ^4.2.2
+  pointycastle: ^3.7.3
+  # -----------------------------------------------------------------------
+
+  # UI & Theming
+  dynamic_color: ^1.7.0
+  google_fonts: ^7.1.0
+  confetti: ^0.7.0
+
+  # File Handling
+  file_picker: ^8.0.0
+  archive: ^3.6.1
+  path: ^1.9.0
+  shared_preferences: ^2.5.4
+  path_provider: ^2.1.2
+  # Google Services
+  google_sign_in: ^7.1.1
+  googleapis: ^13.2.0
+  googleapis_auth: ^1.6.0
+  extension_google_sign_in_as_googleapis_auth: ^3.0.0
+
+  # Permissions
+  permission_handler: ^11.3.0
+
+  # External Apps
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # Ensure your file is actually at this path! 
+    # Standard practice is "assets/keys.tsv" (folder at project root), 
+    # but "lib/assets/keys.tsv" works if you put the folder inside lib.
+    - lib/assets/keys.tsv

@@ -1,0 +1,77 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+// --- THE FIX: FORCE LIBRARIES TO STABLE VERSIONS ---
+// This prevents plugins from pulling in "Alpha/Preview" code that requires SDK 36.
+configurations.all {
+    resolutionStrategy {
+        force 'androidx.browser:browser:1.8.0'        // Downgrade from 1.9.0
+        force 'androidx.core:core:1.15.0'             // Downgrade from 1.17.0
+        force 'androidx.core:core-ktx:1.15.0'         // Downgrade from 1.17.0
+        force 'androidx.lifecycle:lifecycle-runtime:2.7.0'
+        force 'androidx.credentials:credentials:1.3.0' // Downgrade from 1.5.0
+        force 'androidx.credentials:credentials-play-services-auth:1.3.0'
+    }
+}
+// ---------------------------------------------------
+
+android {
+    namespace "com.Zaix.mcpeps5"
+    
+    // SDK 35 is the current stable standard (Android 15)
+    compileSdk 35
+
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        applicationId "com.Zaix.mcpeps5"
+        minSdkVersion flutter.minSdkVersion
+        targetSdk 35
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
