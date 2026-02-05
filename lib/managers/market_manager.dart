@@ -21,15 +21,15 @@ class MarketManager {
     String uuid, 
     String name, 
     String targetDir, 
-    {Function(double)? onProgress}
+    {String? directDownloadUrl, Function(double)? onProgress}
   ) async {
     
     // 1. Check Key
     final String? key = KeyDatabaseService.getKey(uuid);
     if (key == null) return "Error: No key found for this content.";
 
-    // 2. Get URL
-    final String? url = await PlayFabService.getDownloadUrl(uuid);
+    // 2. Get URL (prefer direct content URL like the Python script)
+    final String? url = directDownloadUrl ?? await PlayFabService.getDownloadUrl(uuid);
     if (url == null) return "Error: Could not retrieve download URL.";
 
     try {

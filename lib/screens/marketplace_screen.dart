@@ -192,8 +192,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _buildProductCard(ColorScheme cs, dynamic item) {
-    final String name = item['DisplayName'] ?? "Unknown Pack";
-    final String uuid = item['ItemId'] ?? ""; 
+    final String name = _itemTitle(item, fallback: "Unknown Pack");
+    final String uuid = _itemId(item);
     final String? imgUrl = _findImageUrl(item);
     final bool isUnlocked = KeyDatabaseService.hasKey(uuid);
 
@@ -262,9 +262,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   void _showDetailsSheet(dynamic item, bool isUnlocked) {
     final cs = Theme.of(context).colorScheme;
-    final String name = item['DisplayName'] ?? "Unknown";
-    final String desc = item['Description'] ?? "No description available.";
-    final String uuid = item['ItemId'] ?? "";
+    final String name = _itemTitle(item, fallback: "Unknown");
+    final String desc = _itemDescription(item);
+    final String uuid = _itemId(item);
     final String? imgUrl = _findImageUrl(item);
 
     showModalBottomSheet(
@@ -321,7 +321,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               onPressed: (isUnlocked && _targetPath != null) 
                                 ? () {
                                     // Trigger download, and update THIS sheet's state
-                                    _handleDownload(uuid, name, setSheetState);
+                                    _handleDownload(item, uuid, name, setSheetState);
                                   }
                                 : null,
                               style: FilledButton.styleFrom(
@@ -354,7 +354,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   // Updated to accept setSheetState so we can update the BottomSheet UI
-  Future<void> _handleDownload(String uuid, String name, StateSetter setSheetState) async {
+  Future<void> _handleDownload(dynamic item, String uuid, String name, StateSetter setSheetState) async {
     if (_targetPath == null) return;
 
     setSheetState(() {
@@ -362,10 +362,21 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       _downloadStatus = "Starting...";
     });
 
+    String? directDownloadUrl = PlayFabService.extractContentUrl(item);
+
+    // Some search results can omit `Contents`; fetch by UUID like Python `PlayFab.main(uuid)`.
+    if (directDownloadUrl == null || directDownloadUrl.isEmpty) {
+      final freshItem = await PlayFabService.fetchItemById(uuid);
+      if (freshItem != null) {
+        directDownloadUrl = PlayFabService.extractContentUrl(freshItem);
+      }
+    }
+
     final result = await MarketManager.downloadAndInject(
       uuid, 
       name, 
       _targetPath!,
+      directDownloadUrl: directDownloadUrl,
       onProgress: (p) {
         // Update the BottomSheet UI
         setSheetState(() {
@@ -390,9 +401,53 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     )
   );
 
+
+  String _itemId(dynamic item) {
+    return (item['Id'] ?? item['id'] ?? item['ItemId'] ?? item['itemId'] ?? '').toString();
+  }
+
+  String _itemTitle(dynamic item, {String fallback = "Unknown"}) {
+    final dynamic title = item['Title'] ?? item['title'];
+    if (title is Map) {
+      final dynamic localized = title['en-US'] ?? title['en-us'] ?? title['NEUTRAL'] ?? title['neutral'];
+      if (localized != null && localized.toString().trim().isNotEmpty) {
+        return localized.toString();
+      }
+    }
+
+    final dynamic displayName = item['DisplayName'] ?? item['displayName'];
+    if (displayName != null && displayName.toString().trim().isNotEmpty) {
+      return displayName.toString();
+    }
+
+    return fallback;
+  }
+
+  String _itemDescription(dynamic item) {
+    final dynamic description = item['Description'] ?? item['description'];
+    if (description is Map) {
+      final dynamic localized = description['en-US'] ?? description['en-us'] ?? description['NEUTRAL'] ?? description['neutral'];
+      if (localized != null && localized.toString().trim().isNotEmpty) {
+        return localized.toString();
+      }
+    }
+
+    if (description != null && description.toString().trim().isNotEmpty) {
+      return description.toString();
+    }
+
+    return "No description available.";
+  }
+
   String? _findImageUrl(dynamic item) {
     if (item['ItemImageUrl'] != null && item['ItemImageUrl'].toString().isNotEmpty) return item['ItemImageUrl'];
-    if (item['Images'] != null && item['Images'] is List && item['Images'].isNotEmpty) return item['Images'][0]['Url'];
+    if (item['Images'] != null && item['Images'] is List && item['Images'].isNotEmpty) {
+      final dynamic thumb = (item['Images'] as List).cast<dynamic>().firstWhere(
+        (img) => (img['Type'] ?? '').toString() == 'Thumbnail',
+        orElse: () => item['Images'][0],
+      );
+      return thumb['Url'];
+    }
     return null;
   }
 }

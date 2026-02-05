@@ -6,7 +6,7 @@ import 'package:uuid/uuid.dart';
 class PlayFabService {
   // --- CONFIG FROM PYTHON SCRIPT ---
   static const String _titleId = "20CA2"; 
-  static const String _baseUrl = "https://20CA2.playfabapi.com";
+  static const String _baseUrl = "https://20ca2.playfabapi.com";
   static const String _scid = "4fc10100-5f7a-4470-899b-280835760c07"; // Hardcoded in Python script
   
   // Auth Tokens
@@ -130,7 +130,7 @@ class PlayFabService {
       "filter": filterQuery,
       "orderBy": "creationDate DESC",
       "scid": _scid,
-      "select": "contents", // We need contents to get the Key ID
+      "select": "contents,title,description,images,displayProperties,tags",
       "top": 20,
       "skip": 0,
       "search": searchQuery // The actual text search goes here
@@ -164,6 +164,70 @@ class PlayFabService {
       print("❌ $lastError");
       return [];
     }
+  }
+
+
+  /// Fetch a single catalog item by UUID, mirroring Python's Id-based Catalog search.
+  static Future<Map<String, dynamic>?> fetchItemById(String uuid) async {
+    if (_entityToken == null) {
+      if (!await login()) return null;
+    }
+
+    final uri = Uri.parse("$_baseUrl/Catalog/Search");
+    final body = jsonEncode({
+      "count": true,
+      "query": "",
+      "filter": "Id eq '$uuid'",
+      "orderBy": "creationDate DESC",
+      "scid": _scid,
+      "select": "contents,title,description,images,displayProperties,tags",
+      "top": 1,
+      "skip": 0
+    });
+
+    final headers = {
+      "Content-Type": "application/json",
+      "User-Agent": "libhttpclient/1.0.0.0",
+      "X-EntityToken": _entityToken!
+    };
+
+    try {
+      final response = await http.post(uri, headers: headers, body: body);
+      if (response.statusCode != 200) return null;
+
+      final data = jsonDecode(response.body);
+      final List<dynamic> items = (data['data']?['Items'] as List?) ?? const [];
+      if (items.isEmpty || items.first is! Map<String, dynamic>) return null;
+      return items.first as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+  /// Extract a direct content URL from a Catalog item (Python uses item["Contents"][..]["Url"]).
+  static String? extractContentUrl(dynamic item) {
+    if (item is! Map) return null;
+
+    final dynamic contentsRaw = item['Contents'] ?? item['contents'];
+    final dynamic nested = item['Item']?['Contents'] ?? item['item']?['contents'];
+    final dynamic resolvedContents = (contentsRaw is List && contentsRaw.isNotEmpty) ? contentsRaw : nested;
+    if (resolvedContents is! List || resolvedContents.isEmpty) return null;
+
+    // Prefer non-skin binaries first; fallback to first URL.
+    for (final entry in resolvedContents) {
+      if (entry is! Map) continue;
+      final String type = (entry['Type'] ?? entry['type'] ?? '').toString().toLowerCase();
+      final String? url = (entry['Url'] ?? entry['url'])?.toString();
+      if (url == null || url.isEmpty) continue;
+      if (type != 'skinbinary' && type != 'personabinary') return url;
+    }
+
+    for (final entry in resolvedContents) {
+      if (entry is! Map) continue;
+      final String? url = (entry['Url'] ?? entry['url'])?.toString();
+      if (url != null && url.isNotEmpty) return url;
+    }
+
+    return null;
   }
 
   // --- 3. GET DOWNLOAD URL ---
